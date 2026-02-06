@@ -1,0 +1,96 @@
+services:
+  app:
+    build: .
+    container_name: vpn_app
+    ports:
+      - "8000:8000"
+#    volumes:
+#      - .:/var/www
+#      - vpn_vendor:/var/www/vendor
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      vpn_db:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /var/www
+          ignore:
+            - vendor/
+            - node_modules/
+            - storage/logs/
+            - storage/framework/
+            - .git/
+        - action: rebuild
+          path: composer.json
+        - action: rebuild
+          path: composer.lock
+
+  worker:
+    build: .
+    container_name: vpn_worker
+#    volumes:
+#      - .:/var/www
+#      - vpn_vendor:/var/www/vendor
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      vpn_db:
+        condition: service_healthy
+    command: [ "php", "artisan", "queue:work", "--tries=3", "--timeout=120", "--sleep=1" ]
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /var/www
+          ignore:
+            - vendor/
+            - node_modules/
+            - storage/logs/
+            - storage/framework/
+            - .git/
+        - action: rebuild
+          path: composer.json
+        - action: rebuild
+          path: composer.lock
+
+  redis:
+    image: redis:7-alpine
+    container_name: vpn_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  vpn_db:
+    image: mysql:8.0
+    container_name: vpn_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: vpn
+      MYSQL_USER: vpn
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - vpn_db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot" ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  vpn_db_data:
+#  vpn_vendor:

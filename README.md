@@ -8,6 +8,7 @@ The system is designed to:
 - Run long-running operations asynchronously
 - Provide auditability for all sensitive actions
 
+The repository reflects a stable, reviewed snapshot of the system, not the complete iteration history.
 ---
 
 ## Overview
